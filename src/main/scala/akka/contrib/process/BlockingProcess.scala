@@ -5,6 +5,7 @@
 package akka.contrib.process
 
 import akka.actor.{ Actor, ActorLogging, ActorRef, NoSerializationVerificationNeeded, Props, SupervisorStrategy, Terminated }
+import akka.stream.ActorAttributes
 import akka.stream.scaladsl.{ StreamConverters, Sink, Source }
 import akka.util.{ ByteString, Helpers }
 import java.io.File
@@ -124,12 +125,15 @@ class BlockingProcess(
       val selfRef = context.self
 
       val stdin = StreamConverters.fromOutputStream(process.getOutputStream)
+        .withAttributes(ActorAttributes.dispatcher(context.props.dispatcher))
         .mapMaterializedValue(_.andThen { case _ => selfRef ! StdinTerminated })
 
       val stdout = StreamConverters.fromInputStream(process.getInputStream)
+        .withAttributes(ActorAttributes.dispatcher(context.props.dispatcher))
         .mapMaterializedValue(_.andThen { case _ => selfRef ! StdoutTerminated })
 
       val stderr = StreamConverters.fromInputStream(process.getErrorStream)
+        .withAttributes(ActorAttributes.dispatcher(context.props.dispatcher))
         .mapMaterializedValue(_.andThen { case _ => selfRef ! StderrTerminated })
 
       context.parent ! Started(stdin, stdout, stderr)
